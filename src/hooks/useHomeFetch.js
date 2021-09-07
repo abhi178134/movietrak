@@ -1,6 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 // API
 import API from '../API';
+// Helpers
+import { isPersistedState } from '../helpers';
 
 const initialState = {
   page: 0,
@@ -10,13 +12,11 @@ const initialState = {
 };
 
 export const useHomeFetch = () => {
-  const [searchTerm,setSearchTerm]= useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   const [state, setState] = useState(initialState);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-
-  console.log(searchTerm);
 
   const fetchMovies = async (page, searchTerm = '') => {
     try {
@@ -36,19 +36,34 @@ export const useHomeFetch = () => {
     setLoading(false);
   };
 
-  // Initial & Search
+  // Search and initial
   useEffect(() => {
-    setState (initialState);
-    fetchMovies(1,searchTerm);
+    if (!searchTerm) {
+      const sessionState = isPersistedState('homeState');
+
+      if (sessionState) {
+        console.log('Grabbing from sessionStorage');
+        setState(sessionState);
+        return;
+      }
+    }
+    console.log('Grabbing from API');
+    setState(initialState);
+    fetchMovies(1, searchTerm);
   }, [searchTerm]);
 
-  useEffect(()=> {
-    if(!isLoadingMore) return;
+  // Load More
+  useEffect(() => {
+    if (!isLoadingMore) return;
 
-    fetchMovies(state.page+1,searchTerm);
+    fetchMovies(state.page + 1, searchTerm);
     setIsLoadingMore(false);
+  }, [isLoadingMore, searchTerm, state.page]);
 
-  },[isLoadingMore,searchTerm,state.page])
+  // Write to sessionStorage
+  useEffect(() => {
+    if (!searchTerm) sessionStorage.setItem('homeState', JSON.stringify(state));
+  }, [searchTerm, state]);
 
-  return { state, loading, error,searchTerm,setSearchTerm, setIsLoadingMore};
+  return { state, loading, error, searchTerm, setSearchTerm, setIsLoadingMore };
 };
